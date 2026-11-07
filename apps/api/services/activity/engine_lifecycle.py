@@ -139,6 +139,9 @@ async def cancel_task(task_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession |
             task.completed_at = None
             _task_event(task, "cancel_requested")
             await _record_task_audit(db_session, task, action_kind="task_cancel", outcome="cancel_requested")
+        if task.status == "cancelled":
+            from services.ingestion.queued import mark_ingestion_terminal
+            await mark_ingestion_terminal(db_session, task)
         return await _commit_refreshed_task(db_session, task)
 
 

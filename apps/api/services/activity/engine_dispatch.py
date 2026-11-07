@@ -26,6 +26,14 @@ async def dispatch_task(
     from services.activity.engine_multistep import _run_multi_step_plan
 
     async with async_session() as db:
+        if task_type == "delete_document_objects":
+            from services.ingestion.deletion import delete_owned_objects
+            async with asyncio.timeout(900):
+                return await delete_owned_objects(user_id, payload)
+        if task_type == "ingest_document":
+            from services.ingestion.queued import process_document
+            async with asyncio.timeout(900):
+                return await process_document(db, user_id, payload)
         llm_task_labels = {
             "semester_init": "Semester initialization",
             "weekly_prep": "Weekly prep",

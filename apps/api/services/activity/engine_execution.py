@@ -22,6 +22,7 @@ from services.activity.engine_helpers import (
 )
 from services.activity.engine_lifecycle import _record_task_audit
 from services.provenance import merge_provenance
+from services.ingestion.queued import mark_ingestion_terminal
 
 # Backward-compat re-export (dispatch logic moved to engine_dispatch.py)
 from services.activity.engine_dispatch import dispatch_task as _dispatch_task  # noqa: F401
@@ -54,6 +55,7 @@ async def _mark_task_success(task_id: uuid.UUID, *, result_payload: JsonObject, 
             _refresh_task_checkpoint(task)
             _task_event(task, "cancelled")
             await _record_task_audit(db, task, action_kind="task_execute_cancelled", outcome="cancelled")
+            await mark_ingestion_terminal(db, task)
             await db.commit()
             return False
         task.status = "completed"
@@ -127,6 +129,7 @@ async def _mark_task_cancelled(
         task.completed_at = now
         _task_event(task, "cancelled")
         await _record_task_audit(db, task, action_kind="task_execute_cancelled", outcome="cancelled")
+        await mark_ingestion_terminal(db, task)
         await db.commit()
         return True
 
@@ -160,6 +163,7 @@ async def _mark_task_failure(task_id: uuid.UUID, error_message: str) -> bool:
             db, task, action_kind="task_execute_failed", outcome=task.status,
             details={"error_message": error_message},
         )
+        await mark_ingestion_terminal(db, task)
         await db.commit()
         return True
 

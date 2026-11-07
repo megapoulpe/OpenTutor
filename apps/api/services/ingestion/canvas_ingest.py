@@ -41,6 +41,7 @@ async def ingest_canvas_files(
 
     async def _ingest_one(file_info: dict) -> tuple[int, str | None]:
         async with sem:
+            saved_path = None
             try:
                 saved_path = await download_canvas_file(
                     file_info,
@@ -83,6 +84,9 @@ async def ingest_canvas_files(
             except (ValueError, RuntimeError, ConnectionError, TimeoutError):
                 logger.exception("Unexpected error ingesting Canvas file %s", file_info.get("filename"))
                 return (0, None)
+            finally:
+                if saved_path and settings.storage_backend == "supabase":
+                    _Path(saved_path).unlink(missing_ok=True)
 
     results = await asyncio.gather(*[_ingest_one(f) for f in file_urls])
     for count, failed in results:

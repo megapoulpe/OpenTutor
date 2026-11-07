@@ -348,5 +348,11 @@ async def get_course_info(course_id: uuid.UUID, user: User = Depends(get_current
 @router.delete("/{course_id}", status_code=204, summary="Delete a course", description="Permanently delete a course and its associated data.")
 async def delete_course(course_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     course = await get_course_or_404(db, course_id, user_id=user.id)
+    from models.ingestion import IngestionJob
+    from services.ingestion.deletion import queue_document_cleanup
+    references = (await db.execute(select(IngestionJob.file_path).where(
+        IngestionJob.course_id == course_id, IngestionJob.user_id == user.id,
+    ))).scalars().all()
+    await queue_document_cleanup(db, user.id, references)
     await db.delete(course)
     await db.commit()

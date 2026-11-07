@@ -210,6 +210,9 @@ def _print_auth_warning() -> None:
 
 async def run_startup_hooks() -> None:
     _print_auth_warning()
+    if settings.storage_backend == "supabase":
+        from services.document_storage import verify_private_bucket
+        await verify_private_bucket()
     await _maybe_create_tables()
     await _maybe_bootstrap_migration_tracking()
     await _maybe_seed_system_data()

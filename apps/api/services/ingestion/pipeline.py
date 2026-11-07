@@ -17,6 +17,7 @@ References:
 - Crawl4AI: xxhash for fast content dedup
 """
 
+import asyncio
 import hashlib
 import logging
 import uuid
@@ -25,6 +26,7 @@ from collections.abc import Mapping
 import sqlalchemy as sa
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from config import settings
 
 from models.ingestion import IngestionJob
 from libs.exceptions import IngestionError, reraise_as_app_error  # noqa: F401
@@ -134,6 +136,7 @@ async def run_ingestion_pipeline(
     file_bytes: bytes | None = None,
     pre_fetched_html: str | None = None,
     session_name: str | None = None,
+    existing_job: IngestionJob | None = None,
 ) -> IngestionJob:
     """Run the full 7-step ingestion pipeline.
 
@@ -147,7 +150,7 @@ async def run_ingestion_pipeline(
     """
     # Step 0: Content hash dedup (xxhash ~10x faster than SHA-256, ported from Crawl4AI)
     content_hash = None
-    if file_bytes:
+    if file_bytes and existing_job is None:
         try:
             import xxhash
 
@@ -170,7 +173,7 @@ async def run_ingestion_pipeline(
             return dupe
 
     # Create job
-    job = IngestionJob(
+    job = existing_job or IngestionJob(
         user_id=user_id,
         source_type="file" if file_path else "url",
         original_filename=filename,
@@ -184,9 +187,24 @@ async def run_ingestion_pipeline(
         phase_label=_PHASE_LABELS["uploaded"],
         embedding_status="pending",
     )
-    db.add(job)
-    await db.flush()
-    await db.commit()
+    remote_reference = None
+    if existing_job is None and file_path and settings.storage_backend == "supabase":
+        from services.document_storage import store_document, delete_document
+        from pathlib import Path
+
+        remote_reference = await store_document(
+            user_id, course_id or job.id or uuid.uuid4(), filename,
+            file_bytes if file_bytes is not None else await asyncio.to_thread(Path(file_path).read_bytes),
+        )
+        job.file_path = remote_reference
+    try:
+        db.add(job)
+        await db.flush()
+        await db.commit()
+    except BaseException:
+        if remote_reference:
+            await delete_document(remote_reference)
+        raise
 
     extracted = ""
     extracted_title = ""

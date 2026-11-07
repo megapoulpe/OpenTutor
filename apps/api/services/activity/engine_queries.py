@@ -6,6 +6,7 @@ import logging
 import uuid
 
 from sqlalchemy import or_, select
+from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
@@ -82,6 +83,26 @@ async def submit_task(
 async def _claim_pending_tasks(limit: int) -> list[uuid.UUID]:
     """Claim up to *limit* executable tasks atomically, returning their IDs."""
     async with async_session() as db:
+        # Only ingestion tasks have a bounded 900s execution time. Recover their
+        # abandoned claims after 20 minutes; do not replay arbitrary external actions.
+        stale = (await db.execute(select(AgentTask).where(
+            AgentTask.task_type.in_(("ingest_document", "delete_document_objects")),
+            AgentTask.status.in_(("running", "cancel_requested")),
+            AgentTask.started_at < _utcnow() - timedelta(seconds=1200),
+        ).with_for_update(skip_locked=True).limit(limit))).scalars().all()
+        for task in stale:
+            if task.cancel_requested_at is not None:
+                task.status = "cancelled"
+            elif task.attempts >= max(task.max_attempts, 1):
+                task.status = "failed"
+            else:
+                task.status = "queued"
+            task.started_at = None
+            if task.status in {"failed", "cancelled"}:
+                from services.ingestion.queued import mark_ingestion_terminal
+                task.completed_at = _utcnow()
+                task.error_message = "Worker interrupted before completion."
+                await mark_ingestion_terminal(db, task)
         result = await db.execute(
             select(AgentTask)
             .where(
@@ -95,6 +116,8 @@ async def _claim_pending_tasks(limit: int) -> list[uuid.UUID]:
         )
         tasks = result.scalars().all()
         if not tasks:
+            if stale:
+                await db.commit()
             return []
         now = _utcnow()
         ids: list[uuid.UUID] = []

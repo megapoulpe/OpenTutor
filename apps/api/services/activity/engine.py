@@ -157,8 +157,9 @@ async def _run_loop() -> None:
     current_idle_interval = IDLE_INTERVAL_SECONDS
     while not _stop_event.is_set():
         try:
-            # Claim up to max_concurrency tasks in one batch.
-            ids = await _claim_pending_tasks(max_concurrency)
+            # Do not start the lease clock for tasks waiting behind the semaphore.
+            available = max(0, max_concurrency - len(_inflight_tasks))
+            ids = await _claim_pending_tasks(available) if available else []
         except Exception as e:
             logger.exception("Activity engine: failed to claim tasks: %s", e)
             ids = []

@@ -129,6 +129,7 @@ async def dispatch_content(db: AsyncSession, job: IngestionJob) -> dict:
                 source_file=source_label,
             )
         for node in nodes:
+            node.metadata_ = {**(node.metadata_ or {}), "ingestion_job_id": str(job.id)}
             # Normalize source metadata to the ingestion source (file/url).
             node.source_type = job.source_type
             node.source_file = source_file
@@ -140,7 +141,8 @@ async def dispatch_content(db: AsyncSession, job: IngestionJob) -> dict:
 
         # Queue auto-generation of learning content (notes, practice, flashcards)
         # Uses its own DB session to avoid sharing the caller's session across tasks.
-        if nodes and job.course_id:
+        from config import settings
+        if nodes and job.course_id and not (settings.storage_backend == "supabase" and settings.app_run_activity_engine):
             from services.ingestion.auto_generation import _auto_generate_learning_content
             from database import async_session as async_session_factory
             import asyncio as _asyncio_dispatch

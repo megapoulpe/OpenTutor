@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,12 +63,12 @@ async def upload_file(
     if not file.filename:
         raise ValidationError("No filename provided")
 
-    supported_exts = {".pdf", ".pptx", ".ppt", ".docx", ".doc", ".html", ".htm", ".txt", ".md"}
+    supported_exts = set(settings._split_csv(settings.allowed_upload_extensions))
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in supported_exts:
         raise ValidationError(f"Unsupported file type: {ext}. Supported: {', '.join(supported_exts)}")
 
-    file_bytes = await file.read()
+    file_bytes = await file.read(settings.max_upload_size_mb * 1024 * 1024 + 1)
     if len(file_bytes) > settings.max_upload_size_mb * 1024 * 1024:
         raise ValidationError("File too large")
 
@@ -91,6 +91,13 @@ async def upload_file(
             raise ValidationError(
                 f"File content ({detected.mime}) does not match extension ({ext})"
             )
+
+    if settings.storage_backend == "supabase" and settings.app_run_activity_engine:
+        from services.ingestion.queued import enqueue_document
+        job = await enqueue_document(db, user.id, cid, file.filename, file_bytes)
+        return {"status": "ok", "job_id": str(job.id), "category": job.content_category,
+                "dispatched_to": job.dispatched_to, "nodes_created": job.nodes_created or 0,
+                "course_id": str(cid)}
 
     os.makedirs(settings.upload_dir, exist_ok=True)
     safe_name = re.sub(r"[^\w.\-]", "_", os.path.basename(file.filename)) or "unnamed"
@@ -117,6 +124,9 @@ async def upload_file(
         except OSError:
             logger.warning("Failed to clean up uploaded file: %s", save_path)
         raise
+    finally:
+        if settings.storage_backend == "supabase":
+            Path(save_path).unlink(missing_ok=True)
 
     if job.status == "failed":
         # Clean up on logical failure too
@@ -375,6 +385,29 @@ async def upload_image(
     }
 
 
+@router.delete("/files/{job_id}", status_code=204)
+async def delete_uploaded_file(job_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    from models.content import CourseContentTree
+    from services.ingestion.deletion import queue_document_cleanup
+    job = (await db.execute(select(IngestionJob).where(IngestionJob.id == job_id, IngestionJob.user_id == user.id))).scalar_one_or_none()
+    if not job:
+        raise NotFoundError("Document")
+    if job.status not in {"completed", "failed"}:
+        raise ValidationError("Wait for document processing to finish before deletion")
+    await queue_document_cleanup(db, user.id, [job.file_path])
+    # Explicit provenance avoids deleting another document with the same filename.
+    nodes = (await db.execute(select(CourseContentTree).where(
+        CourseContentTree.course_id == job.course_id,
+        CourseContentTree.metadata_["ingestion_job_id"].as_string() == str(job.id),
+    ))).scalars().all()
+    node_ids = {node.id for node in nodes}
+    for node in nodes:
+        if node.parent_id not in node_ids:
+            await db.delete(node)
+    await db.delete(job)
+    await db.commit()
+
+
 @router.get("/files/{job_id}", summary="Download an uploaded file", description="Serve an uploaded file by ingestion job ID for preview.")
 async def get_uploaded_file(
     job_id: uuid.UUID,
@@ -391,6 +424,15 @@ async def get_uploaded_file(
     job = result.scalar_one_or_none()
     if not job or not job.file_path:
         raise NotFoundError("File")
+
+    if job.file_path.startswith("supabase://"):
+        from services.document_storage import download_document
+        from urllib.parse import quote
+
+        data = await download_document(job.file_path)
+        filename = quote(job.original_filename or "document", safe="")
+        return Response(data, media_type=mimetypes.guess_type(job.original_filename or "")[0] or "application/octet-stream",
+                        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}", "Cache-Control": "private, no-store"})
 
     file_path = Path(job.file_path).resolve()
     upload_dir = Path(settings.upload_dir).resolve()

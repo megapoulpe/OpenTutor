@@ -9,13 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-core.txt requirements-full.txt requirements.txt ./
+COPY requirements-core.txt requirements-cloud.txt requirements-full.txt requirements.txt ./
 RUN pip install --no-cache-dir --prefix=/install -r "${PYTHON_REQUIREMENTS}"
 
 # ---- Runtime stage ----
 FROM python:3.11-slim
 
 WORKDIR /app
+ENV TIKTOKEN_CACHE_DIR=/usr/local/tiktoken
 
 # Runtime-only system deps (curl for healthcheck, docker CLI for sandbox)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -24,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy installed Python packages from builder
 COPY --from=builder /install /usr/local
+RUN python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
 
 # Create non-root user
 RUN groupadd -r opentutor && useradd -r -g opentutor -d /app -s /sbin/nologin opentutor \
@@ -36,6 +38,6 @@ USER opentutor
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/api/health/live || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "services.production_start"]

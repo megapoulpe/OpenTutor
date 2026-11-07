@@ -18,7 +18,7 @@ _db_logger = logging.getLogger("opentutor.db")
 
 _is_sqlite = settings.database_url.startswith("sqlite")
 
-_engine_kwargs: dict = {"echo": False}
+_engine_kwargs: dict = {"echo": False, "hide_parameters": True}
 if _is_sqlite:
     _sqlite_url = make_url(settings.database_url)
     # Only in-memory databases need a shared connection. File databases use

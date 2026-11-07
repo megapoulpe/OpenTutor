@@ -1,0 +1,3 @@
+-r requirements-core.txt
+# PostgreSQL driver is optional for upstream/native SQLite installations.
+psycopg[binary]==3.2.10

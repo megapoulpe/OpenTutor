@@ -1,4 +1,4 @@
--r requirements-core.txt
+-r requirements-cloud.txt
 
 # OpenTutor full dependency set for Docker, CI, and optional integrations.
 

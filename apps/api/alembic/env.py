@@ -66,6 +66,7 @@ async def run_async_migrations() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         connect_args=connect_args,
+        hide_parameters=True,
     )
     try:
         if connectable.dialect.name == "sqlite":

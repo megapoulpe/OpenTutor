@@ -317,7 +317,9 @@ class Settings(BaseSettings):
         return self
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Root .env is shared with Compose; a working-directory .env can override
+        # it for existing native setups. Explicit process environment wins both.
+        env_file=(str(Path(__file__).resolve().parents[2] / ".env"), ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

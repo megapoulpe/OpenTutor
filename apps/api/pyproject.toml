@@ -23,7 +23,6 @@ dependencies = [
     # Database core (SQLite local mode)
     "sqlalchemy[asyncio]>=2.0.30",
     "aiosqlite>=0.20.0",
-    "psycopg[binary]==3.2.10",
 
     # LLM (Ollama — zero-config local inference)
     "openai>=2.8.0,<3.0.0",
@@ -57,6 +56,7 @@ dependencies = [
 
 [project.optional-dependencies]
 cloud = [
+    "psycopg[binary]==3.2.10",
     "anthropic>=0.40.0",
 ]
 full = [

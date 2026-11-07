@@ -2,6 +2,7 @@
   "name": "opentutor-web",
   "version": "0.1.0",
   "private": true,
+  "engines": { "node": ">=22.12.0" },
   "description": "OpenTutor — self-hosted AI learning platform with adaptive tutoring, spaced repetition, and knowledge graphs",
   "repository": {
     "type": "git",

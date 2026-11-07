@@ -25,5 +25,5 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - run: pip install -r apps/api/requirements-core.txt pytest pytest-asyncio pytest-cov
+      - run: pip install -r apps/api/requirements-cloud.txt pytest pytest-asyncio pytest-cov
       - run: python -m pytest tests/test_postgres_integration.py -q -o addopts=

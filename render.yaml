@@ -1,52 +1,69 @@
-# Render Blueprint — one-click deploy for OpenTutor
-# https://render.com/docs/blueprint-spec
-
+# API only. Frontend: Vercel, Root Directory apps/web.
 services:
   - type: web
     name: opentutor-api
     runtime: docker
-    dockerfilePath: apps/api/Dockerfile
-    dockerContext: .
-    healthCheckPath: /api/health
-    disk:
-      name: opentutor-data
-      mountPath: /var/data
-      sizeGB: 10
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /api/health/live
     envVars:
-      - key: DATABASE_URL
-        value: sqlite+aiosqlite:////var/data/opentutor.db
-      - key: APP_AUTO_CREATE_TABLES
-        value: "true"
-      - key: APP_AUTO_SEED_SYSTEM
-        value: "true"
-      - key: APP_RUN_SCHEDULER
-        value: "true"
-      - key: APP_RUN_ACTIVITY_ENGINE
-        value: "true"
       - key: ENVIRONMENT
         value: production
       - key: AUTH_ENABLED
         value: "true"
+      - key: AUTH_PROVIDER
+        value: supabase
+      - key: DEPLOYMENT_MODE
+        value: multi_user
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL_MODE
+        value: verify-full
+      - key: DATABASE_SSL_ROOT_CERT
+        value: /etc/secrets/supabase-ca.crt
+      - key: DATABASE_POOL_MODE
+        value: session
+      - key: DATABASE_POOL_SIZE
+        value: "5"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "5"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: documents
+      - key: STORAGE_BACKEND
+        value: supabase
       - key: JWT_SECRET_KEY
         generateValue: true
-      - key: LLM_PROVIDER
-        sync: false  # Set your LLM provider (ollama, openai, deepseek, etc.)
-      - key: LLM_MODEL
-        sync: false  # Set your model name (e.g., deepseek-chat, gpt-4o-mini)
+      - key: ENCRYPTION_KEY
+        sync: false
       - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: opentutor-web
-          envVarKey: RENDER_EXTERNAL_URL
-
-  - type: web
-    name: opentutor-web
-    runtime: docker
-    dockerfilePath: apps/web/Dockerfile
-    dockerContext: .
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: opentutor-api
-          envVarKey: RENDER_EXTERNAL_URL
+        sync: false
+      - key: LLM_PROVIDER
+        value: openai
+      - key: LLM_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LLM_REQUIRED
+        value: "true"
+      - key: APP_AUTO_CREATE_TABLES
+        value: "false"
+      - key: APP_AUTO_SEED_SYSTEM
+        value: "true"
+      - key: APP_AUTO_SEED_DEMO
+        value: "false"
+      - key: APP_RUN_ACTIVITY_ENGINE
+        value: "true"
+      - key: ACTIVITY_USE_REDIS_NOTIFY
+        value: "false"
+      - key: APP_RUN_SCHEDULER
+        value: "false"
+      - key: UPLOAD_DIR
+        value: /tmp/opentutor-uploads
+      - key: CODE_SANDBOX_BACKEND
+        value: disabled

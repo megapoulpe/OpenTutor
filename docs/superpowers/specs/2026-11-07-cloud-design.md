@@ -102,5 +102,6 @@ Commits locaux logiques uniquement. L'absence de secrets cloud ne bloque pas les
 - https://vercel.com/docs/routing/rewrites
 - https://render.com/docs/web-services
 
-Le changelog markdown Supabase n'a pas pu être lu par le navigateur disponible ;
-la vérification des changements pertinents reste à compléter avant usage cloud.
+Le changelog markdown Supabase a finalement été lu via HTTPS avec le magasin CA
+du système. Les changements CLI v3 et Flutter v3 listés n'affectent pas cette
+implémentation HTTPX/Alembic ; aucun outil Supabase CLI n'est utilisé ici.

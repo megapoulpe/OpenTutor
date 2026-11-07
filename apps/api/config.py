@@ -12,6 +12,11 @@ class Settings(BaseSettings):
 
     # Database (SQLite-only local mode) — defaults to ~/.opentutor/data.db if DATABASE_URL not set
     database_url: str = ""
+    database_pool_size: int = 5
+    database_max_overflow: int = 5
+    database_pool_mode: str = "session"  # session | transaction
+    database_ssl_mode: str = "verify-full"  # disable for local PostgreSQL only
+    database_ssl_root_cert: str = ""
     redis_url: str = "redis://localhost:6379/0"
 
     # LLM — primary provider selection
@@ -55,6 +60,13 @@ class Settings(BaseSettings):
 
     # Authentication
     auth_enabled: bool = False
+    auth_provider: str = "local"  # local | supabase
+    supabase_url: str = ""
+    supabase_publishable_key: str = ""
+    supabase_service_role_key: str = ""
+    supabase_storage_bucket: str = "documents"
+    storage_backend: str = "local"  # local | supabase
+    allowed_upload_extensions: str = ".pdf,.pptx,.ppt,.docx,.doc,.html,.htm,.txt,.md"
     deployment_mode: str = "single_user"  # single_user | multi_user
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
@@ -215,9 +227,18 @@ class Settings(BaseSettings):
                     if sqlite_path.startswith("~"):
                         self.database_url = f"{prefix}{Path(sqlite_path).expanduser()}"
                     break
+        elif self.database_url.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
+            from sqlalchemy.engine import make_url
+
+            url = make_url(self.database_url).set(drivername="postgresql+psycopg")
+            if self.database_pool_mode not in {"session", "transaction"}:
+                raise ValueError("DATABASE_POOL_MODE must be session or transaction")
+            if url.port == 6543 and self.database_pool_mode != "transaction":
+                raise ValueError("Port 6543 requires DATABASE_POOL_MODE=transaction; prefer session pooler 5432")
+            self.database_url = url.render_as_string(hide_password=False)
         else:
             raise ValueError(
-                "SQLite-only local mode requires DATABASE_URL to be empty or start with sqlite"
+                "DATABASE_URL must use SQLite or PostgreSQL (psycopg)"
             )
         return self
 
@@ -226,6 +247,23 @@ class Settings(BaseSettings):
         import logging as _logging
 
         _log = _logging.getLogger("opentutor.config")
+
+        if self.auth_provider not in {"local", "supabase"}:
+            raise ValueError("AUTH_PROVIDER must be local or supabase")
+        if self.storage_backend not in {"local", "supabase"}:
+            raise ValueError("STORAGE_BACKEND must be local or supabase")
+        if self.auth_provider == "supabase":
+            if not self.auth_enabled or not self.supabase_url or not self.supabase_publishable_key:
+                raise ValueError("Supabase auth requires AUTH_ENABLED, SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY")
+        if self.storage_backend == "supabase" and (not self.supabase_url or not self.supabase_service_role_key):
+            raise ValueError("Supabase storage requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
+        if self.supabase_url and not self.supabase_url.startswith("https://"):
+            if self.environment != "development" or not self.supabase_url.startswith(("http://localhost:", "http://127.0.0.1:")):
+                raise ValueError("SUPABASE_URL must use HTTPS")
+        if self.environment != "development" and "*" in self.cors_origin_list:
+            raise ValueError("CORS_ORIGINS must contain explicit origins in production")
+        if self.max_upload_size_mb <= 0:
+            raise ValueError("MAX_UPLOAD_SIZE_MB must be positive")
 
         # Generate a random CSRF signing key when jwt_secret_key is not set
         # (CSRF middleware needs a signing key even when auth is disabled)
@@ -252,6 +290,10 @@ class Settings(BaseSettings):
             )
 
         if self.environment in ("production", "staging"):
+            if self.database_url.startswith("postgresql") and self.database_ssl_mode not in {"require", "verify-ca", "verify-full"}:
+                raise ValueError("PostgreSQL production connections must require TLS")
+            if self.storage_backend == "supabase" and not self.app_run_activity_engine:
+                raise ValueError("Supabase storage requires APP_RUN_ACTIVITY_ENGINE=true for durable processing and deletion")
             if not self.auth_enabled:
                 raise ValueError(
                     "AUTH_ENABLED must be true in production/staging. "

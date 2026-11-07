@@ -10,7 +10,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 
 from config import settings
 
@@ -28,11 +28,19 @@ if _is_sqlite:
         _engine_kwargs["poolclass"] = StaticPool
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
-    _engine_kwargs["pool_size"] = 10
-    _engine_kwargs["max_overflow"] = 20
+    _engine_kwargs["pool_size"] = settings.database_pool_size
+    _engine_kwargs["max_overflow"] = settings.database_max_overflow
     _engine_kwargs["pool_timeout"] = 30
     _engine_kwargs["pool_recycle"] = 1800
     _engine_kwargs["pool_pre_ping"] = True
+    _engine_kwargs["connect_args"] = {"sslmode": settings.database_ssl_mode}
+    if settings.database_ssl_root_cert:
+        _engine_kwargs["connect_args"]["sslrootcert"] = settings.database_ssl_root_cert
+    if settings.database_pool_mode == "transaction":
+        for _key in ("pool_size", "max_overflow", "pool_timeout", "pool_recycle"):
+            _engine_kwargs.pop(_key, None)
+        _engine_kwargs["poolclass"] = NullPool
+        _engine_kwargs["connect_args"]["prepare_threshold"] = None
 
 engine = create_async_engine(settings.database_url, **_engine_kwargs)
 

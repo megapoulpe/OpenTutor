@@ -28,7 +28,7 @@ def _default_migration_state() -> MigrationState:
 
 
 def _database_backend() -> str:
-    return "sqlite"
+    return database_module.engine.dialect.name
 
 
 def _local_beta_readiness(

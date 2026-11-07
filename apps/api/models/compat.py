@@ -8,6 +8,7 @@ import uuid as _uuid
 
 from sqlalchemy import JSON, String, Text
 from sqlalchemy.types import TypeDecorator
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 
 class CompatUUID(TypeDecorator):
@@ -16,18 +17,28 @@ class CompatUUID(TypeDecorator):
     impl = String(36)
     cache_ok = True
 
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(UUID(as_uuid=True) if dialect.name == "postgresql" else String(36))
+
     def process_bind_param(self, value, dialect):
         if value is not None:
-            return str(value)
+            return _uuid.UUID(str(value)) if dialect.name == "postgresql" else str(value)
         return value
 
     def process_result_value(self, value, dialect):
         if value is not None:
-            return _uuid.UUID(value)
+            return _uuid.UUID(str(value))
         return value
 
 
-CompatJSONB = JSON
+class CompatJSONB(TypeDecorator):
+    """JSON for local databases, native JSONB for PostgreSQL."""
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSONB() if dialect.name == "postgresql" else JSON())
 CompatTSVECTOR = Text
 
 

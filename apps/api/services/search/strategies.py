@@ -47,12 +47,8 @@ async def keyword_search(
         case(
             (
                 or_(
-                    func.instr(func.lower(CourseContentTree.title), t.lower()) > 0,
-                    func.instr(
-                        func.lower(func.coalesce(CourseContentTree.content, "")),
-                        t.lower(),
-                    )
-                    > 0,
+                    func.lower(CourseContentTree.title).contains(t.lower(), autoescape=True),
+                    func.lower(func.coalesce(CourseContentTree.content, "")).contains(t.lower(), autoescape=True),
                 ),
                 1,
             ),

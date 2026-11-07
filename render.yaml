@@ -9,61 +9,19 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
-      - key: AUTH_ENABLED
-        value: "true"
-      - key: AUTH_PROVIDER
-        value: supabase
-      - key: DEPLOYMENT_MODE
-        value: multi_user
       - key: DATABASE_URL
         sync: false
-      - key: DATABASE_SSL_MODE
-        value: verify-full
-      - key: DATABASE_SSL_ROOT_CERT
-        value: /etc/secrets/supabase-ca.crt
-      - key: DATABASE_POOL_MODE
-        value: session
-      - key: DATABASE_POOL_SIZE
-        value: "5"
-      - key: DATABASE_MAX_OVERFLOW
-        value: "5"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_PUBLISHABLE_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SUPABASE_STORAGE_BUCKET
-        value: documents
-      - key: STORAGE_BACKEND
-        value: supabase
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: ENCRYPTION_KEY
-        sync: false
+        generateValue: true
       - key: CORS_ORIGINS
         sync: false
-      - key: LLM_PROVIDER
-        value: openai
-      - key: LLM_MODEL
-        value: gpt-4o-mini
       - key: OPENAI_API_KEY
         sync: false
-      - key: LLM_REQUIRED
-        value: "true"
-      - key: APP_AUTO_CREATE_TABLES
-        value: "false"
-      - key: APP_AUTO_SEED_SYSTEM
-        value: "true"
-      - key: APP_AUTO_SEED_DEMO
-        value: "false"
-      - key: APP_RUN_ACTIVITY_ENGINE
-        value: "true"
-      - key: ACTIVITY_USE_REDIS_NOTIFY
-        value: "false"
-      - key: APP_RUN_SCHEDULER
-        value: "false"
-      - key: UPLOAD_DIR
-        value: /tmp/opentutor-uploads
-      - key: CODE_SANDBOX_BACKEND
-        value: disabled

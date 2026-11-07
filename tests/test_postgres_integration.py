@@ -21,7 +21,7 @@ def test_fresh_migrations_are_repeatable_and_private():
     from sqlalchemy.engine import make_url
     url = make_url(URL)
     assert url.database.endswith("_test"), "Use a dedicated integration database"
-    env = dict(os.environ, DATABASE_URL=URL, DATABASE_SSL_MODE="disable")
+    env = dict(os.environ, DATABASE_URL=URL)
     api = Path(__file__).resolve().parents[1] / "apps" / "api"
     for _ in range(2):
         result = subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=api, env=env, capture_output=True, text=True)

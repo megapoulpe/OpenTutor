@@ -58,9 +58,7 @@ def do_run_migrations(connection):
 async def run_async_migrations() -> None:
     connect_args = {}
     if app_settings.database_url.startswith("postgresql"):
-        connect_args = {"sslmode": app_settings.database_ssl_mode, "prepare_threshold": None}
-        if app_settings.database_ssl_root_cert:
-            connect_args["sslrootcert"] = app_settings.database_ssl_root_cert
+        connect_args = app_settings.postgres_connect_args
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

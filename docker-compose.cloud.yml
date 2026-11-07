@@ -21,7 +21,6 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://opentutor:${LOCAL_POSTGRES_PASSWORD}@postgres:5432/opentutor
-      DATABASE_SSL_MODE: disable
       APP_AUTO_CREATE_TABLES: "false"
       APP_AUTO_SEED_DEMO: "false"
       APP_RUN_ACTIVITY_ENGINE: "true"

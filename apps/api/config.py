@@ -10,13 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     environment: str = "development"
 
-    # Database (SQLite-only local mode) — defaults to ~/.opentutor/data.db if DATABASE_URL not set
+    # PostgreSQL for deployment; upstream SQLite remains available in development.
     database_url: str = ""
-    database_pool_size: int = 5
-    database_max_overflow: int = 5
-    database_pool_mode: str = "session"  # session | transaction
-    database_ssl_mode: str = "verify-full"  # disable for local PostgreSQL only
-    database_ssl_root_cert: str = ""
     redis_url: str = "redis://localhost:6379/0"
 
     # LLM — primary provider selection
@@ -199,6 +194,37 @@ class Settings(BaseSettings):
     log_max_bytes: int = 10_485_760  # 10 MB
     log_backup_count: int = 5
 
+    @model_validator(mode="before")
+    @classmethod
+    def _production_defaults(cls, values):
+        """One deployment configuration; explicit upstream settings still win."""
+        if values.get("environment") in {"production", "staging"}:
+            import tempfile
+            defaults = {
+                "auth_enabled": True, "auth_provider": "supabase",
+                "deployment_mode": "multi_user", "storage_backend": "supabase",
+                "app_auto_create_tables": False, "app_auto_seed_demo": False,
+                "app_run_activity_engine": True, "activity_use_redis_notify": False,
+                "llm_provider": "openai", "llm_required": True,
+                "upload_dir": str(Path(tempfile.gettempdir()) / "opentutor-uploads"),
+                "code_sandbox_backend": "disabled",
+            }
+            for key, value in defaults.items():
+                values.setdefault(key, value)
+            if values["llm_provider"] == "openai":
+                values.setdefault("llm_model", "gpt-4o-mini")
+        return values
+
+    @property
+    def postgres_connect_args(self) -> dict:
+        """Shared API/Alembic TLS configuration, with no remote plaintext mode."""
+        from sqlalchemy.engine import make_url
+        from certifi import where
+        url = make_url(self.database_url)
+        if self.environment == "development" and url.host in {"localhost", "127.0.0.1", "::1", "postgres"}:
+            return {"sslmode": "disable"}
+        return {"sslmode": "verify-full", "sslrootcert": url.query.get("sslrootcert") or where()}
+
     @staticmethod
     def _split_csv(value: str) -> list[str]:
         return [item.strip() for item in value.split(",") if item.strip()]
@@ -211,12 +237,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _resolve_database_url(self):
-        """Resolve database URL in SQLite-only local mode.
-
-        - Empty/unset DATABASE_URL → SQLite at ~/.opentutor/data.db (lazy dir creation)
-        - DATABASE_URL must be a sqlite URL when explicitly set
-        """
+        """Normalize the driver, retaining upstream SQLite development support."""
         if not self.database_url:
+            if self.environment != "development":
+                raise ValueError("DATABASE_URL is required outside development")
             data_dir = Path.home() / ".opentutor"
             data_dir.mkdir(parents=True, exist_ok=True)
             self.database_url = f"sqlite+aiosqlite:///{data_dir / 'data.db'}"
@@ -231,10 +255,8 @@ class Settings(BaseSettings):
             from sqlalchemy.engine import make_url
 
             url = make_url(self.database_url).set(drivername="postgresql+psycopg")
-            if self.database_pool_mode not in {"session", "transaction"}:
-                raise ValueError("DATABASE_POOL_MODE must be session or transaction")
-            if url.port == 6543 and self.database_pool_mode != "transaction":
-                raise ValueError("Port 6543 requires DATABASE_POOL_MODE=transaction; prefer session pooler 5432")
+            if url.port == 6543:
+                raise ValueError("Use the Supabase session pooler on port 5432, not transaction port 6543")
             self.database_url = url.render_as_string(hide_password=False)
         else:
             raise ValueError(
@@ -290,8 +312,6 @@ class Settings(BaseSettings):
             )
 
         if self.environment in ("production", "staging"):
-            if self.database_url.startswith("postgresql") and self.database_ssl_mode not in {"require", "verify-ca", "verify-full"}:
-                raise ValueError("PostgreSQL production connections must require TLS")
             if self.storage_backend == "supabase" and not self.app_run_activity_engine:
                 raise ValueError("Supabase storage requires APP_RUN_ACTIVITY_ENGINE=true for durable processing and deletion")
             if not self.auth_enabled:

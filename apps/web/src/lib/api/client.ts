@@ -10,10 +10,7 @@ import { buildAuthHeaders } from "@/lib/auth";
 // In the browser, always use relative "/api" so requests go through the
 // Next.js rewrite (same origin, avoids CSP connect-src issues).
 // On the server (SSR), use NEXT_PUBLIC_API_URL to reach the backend directly.
-export const API_BASE =
-  typeof window !== "undefined"
-    ? "/api"
-    : process.env.NEXT_PUBLIC_API_URL || "/api";
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/$/, "");
 
 /** Show a toast for API errors (non-chat requests). */
 function showApiErrorToast(err: ApiError): void {

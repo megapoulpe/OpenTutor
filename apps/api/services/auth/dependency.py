@@ -70,6 +70,30 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if settings.auth_provider == "supabase":
+        from services.auth.supabase import get_identity
+        from sqlalchemy.exc import IntegrityError
+
+        identity = await get_identity(credentials.credentials)
+        user_id = uuid.UUID(identity["id"])
+        user = await db.get(User, user_id)
+        if user is None:
+            # Bind by immutable identity UUID, never attach an old account by email.
+            user = User(id=user_id, email=identity.get("email"), name="Student")
+            db.add(user)
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                user = await db.get(User, user_id)
+                if user is None:
+                    raise HTTPException(409, "An existing account requires an explicit identity migration")
+        if not user.is_active:
+            raise HTTPException(401, "Account disabled")
+        if request is not None:
+            request.state.user_id = str(user.id)
+        return user
+
     from services.auth.jwt import JWTError, decode_token
     try:
         payload = decode_token(credentials.credentials)

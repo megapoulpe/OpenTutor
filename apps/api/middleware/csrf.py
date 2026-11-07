@@ -94,6 +94,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
+        # Bearer credentials are explicitly attached by JS, never ambient cookies.
+        # The route's authentication dependency still validates the credential.
+        if request.headers.get("authorization", "").lower().startswith("bearer "):
+            return await call_next(request)
 
         # Skip exempt paths
         if any(path.startswith(prefix) for prefix in _EXEMPT_PREFIXES):

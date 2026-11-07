@@ -37,6 +37,8 @@ async def health():
 @router.get("/features", summary="Feature flags", description="Active experimental feature flags for frontend conditional rendering.")
 async def feature_flags():
     return {
+        "auth_enabled": settings.auth_enabled,
+        "auth_provider": settings.auth_provider,
         "loom": settings.enable_experimental_loom,
         "lector": settings.enable_experimental_lector,
         "cat_pretest": settings.enable_experimental_cat,

@@ -1,4 +1,4 @@
-import { API_BASE, request } from "./client";
+import { API_BASE, request, buildSecureRequestInit } from "./client";
 
 import type { NullableDateTime } from "./client";
 
@@ -106,10 +106,7 @@ export async function scrapeNow(sourceId: string): Promise<{ status: string; con
   const timeoutId = setTimeout(() => controller.abort(), 120_000);
   try {
     const res = await fetch(`${API_BASE}/scrape/sources/${sourceId}/scrape-now`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      credentials: "include",
+      ...buildSecureRequestInit({ method: "POST", signal: controller.signal }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { message?: string; detail?: string };

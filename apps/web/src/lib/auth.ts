@@ -81,11 +81,11 @@ export function getStoredAccessToken(): string | null {
     return null;
   }
 
-  const localToken = readFromStorage(window.localStorage);
-  if (localToken) return localToken;
-
   const sessionToken = readFromStorage(window.sessionStorage);
   if (sessionToken) return sessionToken;
+
+  const localToken = readFromStorage(window.localStorage);
+  if (localToken) return localToken;
 
   return readFromCookies();
 }

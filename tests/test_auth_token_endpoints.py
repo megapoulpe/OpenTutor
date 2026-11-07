@@ -39,6 +39,7 @@ def signed_token(claims, *, algorithm="HS256", secret=SECRET):
 async def auth_client(monkeypatch):
     settings = SimpleNamespace(
         auth_enabled=True,
+        auth_provider="local",
         deployment_mode="multi_user",
         jwt_secret_key=SECRET,
         jwt_algorithm="HS256",

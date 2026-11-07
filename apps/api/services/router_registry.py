@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 
 from config import settings
 from routers import (
@@ -58,6 +58,9 @@ CORE_ROUTERS = (
 
 def _include_router(app: FastAPI, router, prefix: str | None = None, tags: list[str] | None = None) -> None:
     kwargs = {}
+    if settings.auth_enabled and settings.auth_provider == "supabase" and router not in (health.router, auth.router):
+        from services.auth.dependency import get_current_user
+        kwargs["dependencies"] = [Depends(get_current_user)]
     if prefix is not None:
         kwargs["prefix"] = prefix
     if tags is not None:

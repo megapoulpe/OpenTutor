@@ -3,7 +3,8 @@
 import json
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from config import settings
 from libs.exceptions import ExternalServiceError, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +39,8 @@ async def set_runtime_llm_config(
     user: User = Depends(get_current_user),
 ):
     """Persist local LLM runtime config and reload provider registry."""
+    if settings.environment != "development":
+        raise HTTPException(403, "Configure LLM providers using the server environment")
     _ = user
     from services.llm.local_config import update_llm_runtime_config
     return update_llm_runtime_config(body.model_dump(exclude_none=True))

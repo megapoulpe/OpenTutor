@@ -28,6 +28,10 @@ export interface LearnerPersona {
 }
 
 const PERSONA_KEY = "opentutor_learner_persona";
+function personaKey(): string {
+  const userId = typeof window !== "undefined" ? sessionStorage.getItem("opentutor-user-id") : null;
+  return userId ? `${PERSONA_KEY}:${userId}` : PERSONA_KEY;
+}
 
 const DEFAULT_PERSONA: LearnerPersona = {
   noteFormat: "auto",
@@ -45,7 +49,7 @@ const DEFAULT_PERSONA: LearnerPersona = {
 export function getPersona(): LearnerPersona {
   if (typeof window === "undefined") return DEFAULT_PERSONA;
   try {
-    const raw = localStorage.getItem(PERSONA_KEY);
+    const raw = localStorage.getItem(personaKey());
     if (raw) return { ...DEFAULT_PERSONA, ...JSON.parse(raw) };
   } catch { /* ignore */ }
   return DEFAULT_PERSONA;
@@ -56,7 +60,7 @@ export function updatePersona(updates: Partial<LearnerPersona>): void {
   try {
     const current = getPersona();
     const merged = { ...current, ...updates };
-    localStorage.setItem(PERSONA_KEY, JSON.stringify(merged));
+    localStorage.setItem(personaKey(), JSON.stringify(merged));
   } catch { /* ignore */ }
 }
 

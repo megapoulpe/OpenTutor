@@ -7,6 +7,13 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _env_files(config_file: Path) -> tuple[str, ...]:
+    api_dir = config_file.parent
+    if api_dir.name == "api" and api_dir.parent.name == "apps":
+        return (str(api_dir.parent.parent / ".env"), ".env")
+    return (".env",)
+
+
 class Settings(BaseSettings):
     environment: str = "development"
 
@@ -339,7 +346,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # Root .env is shared with Compose; a working-directory .env can override
         # it for existing native setups. Explicit process environment wins both.
-        env_file=(str(Path(__file__).resolve().parents[2] / ".env"), ".env"),
+        env_file=_env_files(Path(__file__).resolve()),
         env_file_encoding="utf-8",
         extra="ignore",
     )

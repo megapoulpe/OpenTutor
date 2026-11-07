@@ -86,8 +86,8 @@ Pour utiliser Auth/Storage Supabase en développement, activer leurs réglages d
 
 ## 6. Diagnostic et mises à jour
 
-- **TLS SQL** : les connexions distantes imposent `verify-full` avec le bundle CA public déjà fourni par HTTPX/certifi.
-  Si votre endpoint exige une CA Supabase spécifique, indiquer son chemin via `sslrootcert` dans `DATABASE_URL`.
+- **TLS SQL** : les connexions distantes imposent `verify-full` ; la CA officielle Supabase est incluse pour ses endpoints.
+  Les autres serveurs utilisent certifi ; `sslrootcert` dans `DATABASE_URL` permet une CA personnalisée si nécessaire.
   Ne jamais contourner une erreur distante avec `sslmode=require` ou `disable` ; le code impose la vérification.
 - **401** : vérifier compte confirmé, bon projet et session ; **CORS** : vérifier origine exacte et URL API avec `/api`.
 - **Bucket** : vérifier nom `documents`, privé et clé service_role ; **503 LLM** : clé, quota ou modèle du provider.

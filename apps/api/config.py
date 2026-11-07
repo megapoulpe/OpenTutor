@@ -230,7 +230,10 @@ class Settings(BaseSettings):
         url = make_url(self.database_url)
         if self.environment == "development" and url.host in {"localhost", "127.0.0.1", "::1", "postgres"}:
             return {"sslmode": "disable"}
-        return {"sslmode": "verify-full", "sslrootcert": url.query.get("sslrootcert") or where()}
+        root_cert = where()
+        if (url.host or "").lower().endswith((".pooler.supabase.com", ".supabase.co")):
+            root_cert = str(Path(__file__).resolve().parent / "certs" / "supabase-prod-ca-2021.crt")
+        return {"sslmode": "verify-full", "sslrootcert": url.query.get("sslrootcert") or root_cert}
 
     @staticmethod
     def _split_csv(value: str) -> list[str]:

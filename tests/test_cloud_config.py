@@ -32,6 +32,39 @@ def test_local_postgres_does_not_require_a_tls_server():
     assert config.postgres_connect_args == {"sslmode": "disable"}
 
 
+@pytest.mark.parametrize("host", [
+    "aws-0-ap-southeast-1.pooler.supabase.com",
+    "db.example.supabase.co",
+])
+def test_supabase_postgres_trusts_the_official_root_ca(host):
+    import ssl
+
+    config = Settings(_env_file=None, database_url=f"postgresql://owner:fake@{host}:5432/postgres")
+    args = config.postgres_connect_args
+    context = ssl.create_default_context(cafile=args["sslrootcert"])
+    trusted_names = {
+        value for cert in context.get_ca_certs()
+        for rdn in cert["subject"] for key, value in rdn if key == "commonName"
+    }
+    assert "Supabase Root 2021 CA" in trusted_names
+    assert args["sslmode"] == "verify-full"
+
+
+@pytest.mark.parametrize("host", ["db.example.org", "pooler.supabase.com.example.org"])
+def test_other_postgres_hosts_keep_public_root_certificates(host):
+    import certifi
+
+    config = Settings(_env_file=None, database_url=f"postgresql://owner:fake@{host}/postgres")
+    assert config.postgres_connect_args == {"sslmode": "verify-full", "sslrootcert": certifi.where()}
+
+
+def test_explicit_postgres_ca_is_preserved():
+    config = Settings(_env_file=None, database_url=(
+        "postgresql://owner:fake@db.example.supabase.co/postgres?sslrootcert=/custom/ca.crt"
+    ))
+    assert config.postgres_connect_args == {"sslmode": "verify-full", "sslrootcert": "/custom/ca.crt"}
+
+
 def test_production_defaults_need_only_credentials_and_origin(monkeypatch):
     # Upstream integration modules set development flags during collection.
     # Defaults are tested with those explicit overrides absent.

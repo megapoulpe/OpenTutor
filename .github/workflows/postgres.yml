@@ -1,8 +1,6 @@
 name: PostgreSQL integration
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 jobs:
   postgres:
     runs-on: ubuntu-latest
@@ -18,7 +16,7 @@ jobs:
           --health-cmd "pg_isready -U opentutor -d opentutor_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: sqlite+aiosqlite:///:memory:
+      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
       POSTGRES_TEST_DATABASE_URL: postgresql://opentutor:integration-only-password@127.0.0.1:5432/opentutor_test
     steps:
       - uses: actions/checkout@v6

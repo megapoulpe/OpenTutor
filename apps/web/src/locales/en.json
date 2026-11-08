@@ -934,5 +934,17 @@
   "summary.studyTimeHM": "{h}h {m}m",
   "summary.studyTimeM": "{m}m",
   "summary.empty": "No data yet. Keep studying!",
-  "summary.loadFailed": "Could not load digest."
+  "summary.loadFailed": "Could not load digest.",
+  "home.weeklyStats.title": "This Week's Learning Stats",
+  "home.weeklyStats.studyTime": "Study Time",
+  "home.weeklyStats.quizAccuracy": "Quiz Accuracy",
+  "home.weeklyStats.activeDays": "Active Days",
+  "home.weeklyStats.lastWeekMinutes": "Last week: {count} min",
+  "home.weeklyStats.lastWeekAccuracy": "Last week: {accuracy}%",
+  "home.weeklyStats.lastWeekDays": "Last week: {count} d",
+  "home.stats.minutes": "min",
+  "home.stats.days": "d",
+  "home.masteryOverview.title": "Cross-Course Mastery",
+  "home.masteryOverview.averageMastery": "Average Mastery",
+  "home.masteryOverview.totalStudyTime": "Total Study Time"
 }

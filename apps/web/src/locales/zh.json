@@ -934,5 +934,17 @@
   "summary.studyTimeHM": "{h}小时{m}分钟",
   "summary.studyTimeM": "{m}分钟",
   "summary.empty": "暂无数据，继续学习吧！",
-  "summary.loadFailed": "无法加载摘要。"
+  "summary.loadFailed": "无法加载摘要。",
+  "home.weeklyStats.title": "本周学习统计",
+  "home.weeklyStats.studyTime": "学习时长",
+  "home.weeklyStats.quizAccuracy": "测验准确率",
+  "home.weeklyStats.activeDays": "活跃天数",
+  "home.weeklyStats.lastWeekMinutes": "上周 {count} 分钟",
+  "home.weeklyStats.lastWeekAccuracy": "上周 {accuracy}%",
+  "home.weeklyStats.lastWeekDays": "上周 {count} 天",
+  "home.stats.minutes": "分钟",
+  "home.stats.days": "天",
+  "home.masteryOverview.title": "跨课程掌握度",
+  "home.masteryOverview.averageMastery": "总体平均掌握度",
+  "home.masteryOverview.totalStudyTime": "累计学习时长"
 }

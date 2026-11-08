@@ -70,7 +70,7 @@ export function useDashboardData() {
   const totalRunningTasks = courses.reduce((sum, c) => sum + (c.pending_task_count ?? 0), 0);
   const totalUrgentReviews = reviewSummaries.reduce((s, r) => s + r.overdueCount + r.urgentCount, 0);
 
-  // Onboarding + single-course redirect (only after initial fetch completes)
+  // Onboarding (only after initial fetch completes)
   const [fetchTriggered, setFetchTriggered] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -79,9 +79,6 @@ export function useDashboardData() {
     // If courses exist, mark onboarded and skip setup
     if (courses.length > 0) {
       try { window.localStorage.setItem("opentutor_onboarded", "true"); } catch { /* quota */ }
-      if (courses.length === 1) {
-        router.replace(`/course/${courses[0].id}`);
-      }
       return;
     }
 
